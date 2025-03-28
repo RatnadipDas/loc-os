@@ -11,4 +11,4 @@
 #define SYS_EXIT 3       ///< Terminate the process.
 #define SYS_READFILE 4   ///< Read data from a file.
 #define SYS_WRITEFILE 5  ///< Write data to a file.
-#define SYS_SHUTDOWN 6   ///< Shutdown the system.
+#define SYS_SHUTDOWN 8   ///< Shutdown the system.

@@ -1,15 +1,45 @@
-#include "kernel.h"
-
 #include "lib.h"
 #include "types.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
 
-void kernel_main(void) {
-  memset(__bss, 0,
-         (size_t)__bss_end - (size_t)__bss);  // set the bss memory area to zero
+/**
+ * @brief Initializes the .bss section by setting it to zero.
+ *
+ * This function clears the `.bss` section by filling it with zeros.
+ * The `.bss` section typically contains uninitialized global and static
+ * variables.
+ *
+ * It logs the initialization process using `INFO` before clearing the memory
+ * and confirms completion with `OK`.
+ *
+ * @note This function should be called early in the system initialization
+ * process.
+ *
+ * @example
+ * @code
+ * init_bss();
+ * @endcode
+ */
+void init_bss(void) {
+  INFO("Initializing .bss area...");
+  memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
+  OK("Initialized .bss area.");
+}
 
-  for (;;);  // loop infinitely
+void kernel_main(void) {
+  INFO("Booting...");
+
+  init_bss();
+
+  OK("Booted successfully.");
+
+  PANIC("panics here!");
+  FAILED("unreachable here!");
+
+  for (;;) {
+    __asm__ __volatile__("wfi");
+  };  // loop infinitely
 }
 
 /**

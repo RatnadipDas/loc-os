@@ -16,7 +16,6 @@ typedef int bool;
  * These typedefs define integer types with specific bit widths, ensuring
  * portability across different platforms.
  */
-
 typedef char int8_t;            ///< 8-bit signed integer.
 typedef unsigned char uint8_t;  ///< 8-bit unsigned integer.
 
