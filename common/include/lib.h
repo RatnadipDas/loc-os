@@ -244,14 +244,14 @@
  * PANIC("Kernel encountered an unrecoverable error!");
  * @endcode
  */
-#define PANIC(fmt, ...)                                                    \
-  do {                                                                     \
-    printf("[" L_YELLOW "PANIC" NONE "] " L_BLACK "%s:%d: " NONE fmt "\n", \
-           __FILE__, __LINE__, ##__VA_ARGS__);                             \
-    while (true) {                                                         \
-      __asm__ __volatile__("wfi");                                         \
-    }                                                                      \
-  } while (false)
+#define PANIC(fmt, ...)                                                        \
+    do {                                                                       \
+        printf("[" L_YELLOW "PANIC" NONE "] " L_BLACK "%s:%d: " NONE fmt "\n", \
+               __FILE__, __LINE__, ##__VA_ARGS__);                             \
+        while (true) {                                                         \
+            __asm__ __volatile__("wfi");                                       \
+        }                                                                      \
+    } while (false)
 
 /**
  * @brief Logs a failure message.
@@ -267,7 +267,7 @@
  * @endcode
  */
 #define FAILED(fmt, ...) \
-  printf("[" L_RED "FAILED" NONE "] " fmt "\n", ##__VA_ARGS__);
+    printf("[" L_RED "FAILED" NONE "] " fmt "\n", ##__VA_ARGS__);
 
 /**
  * @brief Logs a success message.
@@ -283,7 +283,7 @@
  * @endcode
  */
 #define OK(fmt, ...) \
-  printf("[" L_GREEN "  OK  " NONE "] " fmt "\n", ##__VA_ARGS__);
+    printf("[" L_GREEN "  OK  " NONE "] " fmt "\n", ##__VA_ARGS__);
 
 /**
  * @brief Logs an informational message to the console.
@@ -303,7 +303,7 @@
  * @endcode
  */
 #define INFO(fmt, ...) \
-  printf("[" L_BLUE " INFO " NONE "] " fmt "\n", ##__VA_ARGS__);
+    printf("[" L_BLUE " INFO " NONE "] " fmt "\n", ##__VA_ARGS__);
 
 /**
  * @brief Fills a block of memory with a specified byte value.

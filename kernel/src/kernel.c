@@ -22,24 +22,26 @@ extern char __bss[], __bss_end[], __stack_top[];
  * @endcode
  */
 void init_bss(void) {
-  INFO("Initializing .bss area...");
-  memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
-  OK("Initialized .bss area.");
+    INFO("Initializing .bss area...");
+    memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
+    OK("Initialized .bss area.");
+}
+
+void init_boot(void) {
+    INFO("Booting...");
+    init_bss();
+    OK("Booted successfully.");
 }
 
 void kernel_main(void) {
-  INFO("Booting...");
+    init_boot();
 
-  init_bss();
+    PANIC("panics here!");
+    FAILED("unreachable here!");
 
-  OK("Booted successfully.");
-
-  PANIC("panics here!");
-  FAILED("unreachable here!");
-
-  for (;;) {
-    __asm__ __volatile__("wfi");
-  };  // loop infinitely
+    for (;;) {
+        __asm__ __volatile__("wfi");
+    };  // loop infinitely
 }
 
 /**
@@ -61,11 +63,11 @@ void kernel_main(void) {
  * the top of the stack.
  */
 __attribute__((section(".text.boot"))) __attribute__((naked)) void boot(void) {
-  __asm__ __volatile__(
-      "mv sp, %[stack_top]\n"  // Set the stack pointer
-      "j kernel_main\n"        // Jump to the kernel main function
-      :
-      : [stack_top] "r"(
-          __stack_top)  // Pass the stack top address as %[stack_top]
-  );
+    __asm__ __volatile__(
+        "mv sp, %[stack_top]\n"  // Set the stack pointer
+        "j kernel_main\n"        // Jump to the kernel main function
+        :
+        : [stack_top] "r"(
+            __stack_top)  // Pass the stack top address as %[stack_top]
+    );
 }

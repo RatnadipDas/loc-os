@@ -6,7 +6,7 @@
 /**
  * @brief Performs an SBI (Supervisor Binary Interface) call.
  *
- * This function executes an **ecall** instruction to invoke an SBI function
+ * This function executes an `ecall` instruction to invoke an SBI function
  * with the provided arguments and returns the result.
  *
  * @param[in] arg0 First argument for the SBI call (a0 register).
@@ -38,21 +38,22 @@
  */
 struct sbiret sbi_call(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
                        int32_t arg4, int32_t arg5, int32_t fid, int32_t eid) {
-  register int32_t a0 __asm__("a0") = arg0;
-  register int32_t a1 __asm__("a1") = arg1;
-  register int32_t a2 __asm__("a2") = arg2;
-  register int32_t a3 __asm__("a3") = arg3;
-  register int32_t a4 __asm__("a4") = arg4;
-  register int32_t a5 __asm__("a5") = arg5;
-  register int32_t a6 __asm__("a6") = fid;
-  register int32_t a7 __asm__("a7") = eid;
+    register int32_t a0 __asm__("a0") = arg0;
+    register int32_t a1 __asm__("a1") = arg1;
+    register int32_t a2 __asm__("a2") = arg2;
+    register int32_t a3 __asm__("a3") = arg3;
+    register int32_t a4 __asm__("a4") = arg4;
+    register int32_t a5 __asm__("a5") = arg5;
+    register int32_t a6 __asm__("a6") = fid;
+    register int32_t a7 __asm__("a7") = eid;
 
-  __asm__ __volatile__("ecall"
-                       : "=r"(a0), "=r"(a1)
-                       : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5),
-                         "r"(a6), "r"(a7)
-                       : "memory");
-  return (struct sbiret){.error = a0, .value = a1};
+    __asm__ __volatile__("ecall" : "=r"(a0), "=r"(a1)
+                         : "r"(a0), "r"(a1), "r"(a2), "r"(a3),
+                           "r"(a4), "r"(a5), "r"(a6), "r"(a7)
+                         : "memory");
+    return (struct sbiret){.error = a0, .value = a1};
 }
 
-void putchar(char ch) { sbi_call(ch, 0, 0, 0, 0, 0, 0, SYS_PUTCHAR); }
+void putchar(char ch) {
+    sbi_call(ch, 0, 0, 0, 0, 0, 0, SYS_PUTCHAR);
+}

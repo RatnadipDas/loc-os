@@ -22,8 +22,8 @@
  * @endcode
  */
 struct sbiret {
-  long error;  ///< Error code (0 for success, negative for failure).
-  long value;  ///< Return value from the SBI call.
+    long error;  ///< Error code (0 for success, negative for failure).
+    long value;  ///< Return value from the SBI call.
 };
 
 /**

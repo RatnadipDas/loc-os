@@ -34,7 +34,6 @@ typedef unsigned long long uint64_t;  ///< 64-bit unsigned integer.
  * These types are typically used in memory management, addressing, and buffer
  * size representations.
  */
-typedef uint32_t
-    size_t;  ///< Type used for representing sizes of objects in memory.
+typedef uint32_t size_t;   ///< Type used for representing sizes of objects in memory.
 typedef uint32_t paddr_t;  ///< Type used for representing physical addresses.
 typedef uint32_t vaddr_t;  ///< Type used for representing virtual addresses.
