@@ -353,6 +353,27 @@ size_t strlen(char *str);
 char *strrev(char *str);
 
 /**
+ * @brief Appends one string to another.
+ *
+ * This function concatenates the source string (`src`) to the destination string (`dest`).
+ * The `dest` string must have enough space to accommodate the additional characters
+ * from `src`, including the null terminator.
+ *
+ * @param dest Pointer to the destination string, which must be large enough to hold the result.
+ * @param src Pointer to the source string, which is appended to `dest`.
+ * @return A pointer to the destination string (`dest`).
+ *
+ * @example
+ * @code
+ * char str1[20] = "Hello, ";
+ * char str2[] = "World!";
+ * strcat(str1, str2);
+ * printf("%s\n", str1); // Output: "Hello, World!"
+ * @endcode
+ */
+char *strcat(char *dest, const char *src);
+
+/**
  * @brief Converts an integer to a string representation in a given base.
  *
  * This function converts a signed 32-bit integer to a null-terminated
@@ -385,54 +406,69 @@ char *itoa(int32_t num, char *str, size_t base);
 /**
  * @brief Converts a string to an integer.
  *
- * This function converts a numeric string to a signed 32-bit integer.
- * It ignores leading whitespace and handles optional negative signs.
+ * This function converts a numeric string (in various bases) into an `int32_t` value.
+ * It supports decimal, binary, octal, and hexadecimal number representations. The
+ * function also handles negative numbers and ignores leading whitespace and zeros.
  *
- * @param str Pointer to the null-terminated string containing the number.
- * @return The converted integer value. If the string does not contain
- *         a valid number, the result is undefined.
+ * ## Supported Number Formats:
+ * - Decimal (default): `"123"` → `123`
+ * - Binary (prefix '0b'): `"0b110"` → `6`
+ * - Octal (prefix '0o'): `"0o17"` → `15`
+ * - Hexadecimal (prefix '0x'): `"x1f"` → `31`
+ * - Negative decimal: `"-42"` → `-42`
+ * - Negative Binary: `"-0b110"` → `-6`
+ * - Negative octal: `"-0o17"` → `-15`
+ * - Negative hexadecimal: `"-0x1f"` → `-31`
  *
- * @note This function does not handle integer overflow or underflow.
+ * @param str Pointer to a null-terminated string representing a number.
+ * @return The converted integer value.
+ *
+ * @note Assumes valid input; no error checking for malformed strings.
  *
  * @example
  * @code
- * int main() {
- *     printf("%d\n", atoi("1234"));    // Output: 1234
- *     printf("%d\n", atoi("-5678"));   // Output: -5678
- *     printf("%d\n", atoi("  42"));    // Output: 42
- *     printf("%d\n", atoi("99abc"));   // Output: 99 (stops at non-digit)
- *     return 0;
- * }
+ * printf("%d\n", atoi("123"));      // Output: 123
+ * printf("%d\n", atoi("-123"));     // Output: -123
+ * printf("%d\n", atoi("0b1010"));   // Output: 10
+ * printf("%d\n", atoi("-0b1010"));  // Output: -10
+ * printf("%d\n", atoi("0o10"));     // Output: 8
+ * printf("%d\n", atoi("-0o10"));    // Output: -8
+ * printf("%d\n", atoi("0xff"));     // Output: 255
+ * printf("%d\n", atoi("-0xff"));    // Output: -255
  * @endcode
  */
 int32_t atoi(const char *str);
 
 /**
- * @brief Prints formatted output to the standard output (stdout).
+ * @brief Prints formatted output to the standard output.
  *
- * @param fmt A format string specifying how the arguments should be formatted
- * and printed.
- * @param ... Additional arguments corresponding to the format specifiers in
- * `fmt`.
- * @return The number of characters printed (excluding the null terminator) on
- * success, or a negative value if an error occurs.
+ * This function is a simplified implementation of `printf` that supports
+ * format specifiers for different data types. The function processes the
+ * format string (`fmt`), replacing format specifiers with corresponding
+ * argument values.
  *
- * @note Supported format specifiers:
- *       - `%d` for signed integers (decimal)
- *       - `%x` for unsigned integers (hexadecimal, lowercase)
- *       - `%c` for single characters
- *       - `%s` for null-terminated strings
- *       - `%%` to print a literal `%` character
- * @note Undefined behavior may occur if the format specifiers do not match the
- * provided arguments.
+ * ## Supported Format Specifiers:
+ * - `%c` → Character
+ * - `%s` → Null-terminated string
+ * - `%d` → Signed decimal integer (`int32_t`)
+ * - `%b` → Binary representation (`uint32_t`)
+ * - `%o` → Octal representation (`uint32_t`)
+ * - `%x` → Hexadecimal representation (`uint32_t`)
+ * - `%%` → Prints a literal `%` character
+ *
+ * @param fmt Pointer to a null-terminated format string containing format specifiers.
+ * @param ... Variable arguments matching the format specifiers in `fmt`.
+ *
+ * @note This function assumes `itoa()` is implemented for converting integers.
+ * @warning The function does not support floating-point numbers (`%f`).
  *
  * @example
  * @code
- * printf("Number: %d\n", 42);         // Prints "Number: 42"
- * printf("Hex: %x\n", 255);           // Prints "Hex: ff"
- * printf("Char: %c\n", 'A');          // Prints "Char: A"
- * printf("String: %s\n", "Hello");    // Prints "String: Hello"
- * printf("Percent: %%\n");            // Prints "Percent: %"
+ * printf("Char: %c, String: %s, Int: %d\n", 'A', "Hello", 123); // Output: Char: A, String: Hello, Int: 123
+ *
+ * printf("Binary: %b, Octal: %o, Hex: %x\n", 10, 10, 10); // Output: Binary: 1010, Octal: 12, Hex: a
+ *
+ * printf("Percent: %%\n"); // Output: Percent: %
  * @endcode
  */
 void printf(const char *fmt, ...);

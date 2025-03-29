@@ -71,6 +71,14 @@ char *strrev(char *str) {
     return str;
 }
 
+char *strcat(char *dest, const char *src) {
+    char *p = dest;
+    char *q = (char *)src;
+    while (*p) p++;
+    while ((*p++ = *q++));
+    return dest;
+}
+
 char *itoa(int32_t num, char *str, size_t base) {
     // If num is zero, return "0"
     if (num == 0) {
@@ -108,23 +116,48 @@ char *itoa(int32_t num, char *str, size_t base) {
 }
 
 int32_t atoi(const char *str) {
-    bool isNegative = 0;
+    bool isNegative = false;
+    int32_t num = 0;
 
-    // Ignore leading white spaces
-    while (*str == ' ') str++;
+    // Ignore leading white spaces and zeros
+    while (*str == ' ' || *str == '0') str++;
 
-    // Handle optional negative sign
     if (*str == '-') {
-        isNegative = 1;
+        isNegative = true;
         str++;
+        // Ignore leading white spaces and zeros
+        while (*str == ' ' || *str == '0') str++;
     }
 
-    int32_t num;
-    for (num = 0; *str >= '0' && *str <= '9'; str++) {
-        num *= 10;
-        num += *str - '0';
+    switch (*str) {
+        case 'b': {  // Binary format
+            for (str++; *str >= '0' && *str <= '1'; str++) {
+                num *= 2;
+                num += *str - '0';
+            }
+            break;
+        }
+        case 'o': {  // Octal format
+            for (str++; *str >= '0' && *str <= '7'; str++) {
+                num *= 8;
+                num += *str - '0';
+            }
+            break;
+        }
+        case 'x': {  // Hexadecimal format
+            for (str++; (*str >= '0' && *str <= '9') || (*str >= 'a' && *str <= 'f'); str++) {
+                num *= 16;
+                num += *str >= '0' && *str <= '9' ? *str - '0' : *str - 'a' + 10;
+            }
+            break;
+        }
+        default: {  // Decimal format
+            for (; *str >= '0' && *str <= '9'; str++) {
+                num *= 10;
+                num += *str - '0';
+            }
+        }
     }
-
     return isNegative ? -num : num;
 }
 
@@ -142,10 +175,11 @@ void printf(const char *fmt, ...) {
             case '%':    // Print '%'
                 putchar('%');
                 break;
-            case 'c':  // Print a single character.
+            case 'c': {  // Print a single character.
                 char ch = va_arg(vargs, char);
                 putchar(ch);
                 break;
+            }
             case 's': {  // Print a NULL-terminated string.
                 const char *s = va_arg(vargs, const char *);
                 while (*s) {
@@ -161,17 +195,29 @@ void printf(const char *fmt, ...) {
                 printf("%s", itoa(value, buf, 10));
                 break;
             }
+            case 'b': {  // Print an integer in binary.
+                uint32_t value = va_arg(vargs, uint32_t);
+                char buf[33];  // address has at max 32 characters in binary characters and 1 more character for '\0'
+                printf("%s", itoa(value, buf, 2));
+                break;
+            }
+            case 'o': {  // Print an integer in octal.
+                uint32_t value = va_arg(vargs, uint32_t);
+                char buf[12];  // address has at max 11 characters in octal characters and 1 more character for '\0'
+                printf("%s", itoa(value, buf, 8));
+                break;
+            }
             case 'x': {  // Print an integer in hexadecimal.
-                int32_t value = va_arg(vargs, int32_t);
-                char buf[9];  // address has at max 8 characters and 1 more character for '\0'
-                              // 0x00000000 to 0xffffffff
+                uint32_t value = va_arg(vargs, uint32_t);
+                char buf[9];  // address has at max 8 characters in hex and 1 more character for '\0'
                 printf("%s", itoa(value, buf, 16));
                 break;
             }
-            case '\0':  // '%' at the end of the format string, print '%'.
+            case '\0': {  // '%' at the end of the format string, print '%'.
                 putchar('%');
                 p--;
                 break;
+            }
             default:  // Print '%' and the character that follows '%'.
                 putchar('%');
                 putchar(*p);
