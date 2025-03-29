@@ -1,5 +1,6 @@
 #include "lib.h"
 #include "types.h"
+#include "utils.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
 

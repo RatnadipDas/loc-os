@@ -23,16 +23,16 @@
  */
 void putchar(char ch);
 
-void *memset(void *buf, int8_t value, size_t size) {
+void *memset(void *buf, int8_t c, size_t n) {
     uint8_t *p = (uint8_t *)buf;
-    while (size--) *p++ = value;
+    while (n--) *p++ = c;
     return buf;
 }
 
-void *memcpy(void *dst, const void *src, size_t size) {
+void *memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = (uint8_t *)dst;
     const uint8_t *s = (const uint8_t *)src;
-    while (size--) *d++ = *s++;
+    while (n--) *d++ = *s++;
     return dst;
 }
 
@@ -53,69 +53,130 @@ int strcmp(const char *str1, const char *str2) {
     return *(unsigned char *)str1 - *(unsigned char *)str2;
 }
 
+size_t strlen(char *str) {
+    size_t n = 0;
+    char *s = str;
+    while (*s++) n++;
+    return n;
+}
+
+char *strrev(char *str) {
+    for (int32_t start = 0, end = (int32_t)strlen(str) - 1; start < end;
+         start++, end--) {
+        char tmp = str[start];
+        str[start] = str[end];
+        str[end] = tmp;
+    }
+
+    return str;
+}
+
+char *itoa(int32_t num, char *str, size_t base) {
+    // If num is zero, return "0"
+    if (num == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return str;
+    }
+
+    size_t i = 0;
+    bool isNegative = false;
+    uint32_t magnitude = num;
+
+    // Handle negative numbers (only for base 10)
+    if (num < 0 && base == 10) {
+        isNegative = true;
+        magnitude = -num;
+    }
+
+    // Convert number to string representation
+    while (magnitude) {
+        int32_t rem = magnitude % base;
+        str[i++] = rem < 10 ? rem + '0' : rem - 10 + 'a';
+        magnitude /= base;
+    }
+
+    // Append negative sign if needed
+    if (isNegative) str[i++] = '-';
+
+    str[i] = '\0';
+
+    // Reverse the string
+    strrev(str);
+
+    return str;
+}
+
+int32_t atoi(const char *str) {
+    bool isNegative = 0;
+
+    // Ignore leading white spaces
+    while (*str == ' ') str++;
+
+    // Handle optional negative sign
+    if (*str == '-') {
+        isNegative = 1;
+        str++;
+    }
+
+    int32_t num;
+    for (num = 0; *str >= '0' && *str <= '9'; str++) {
+        num *= 10;
+        num += *str - '0';
+    }
+
+    return isNegative ? -num : num;
+}
+
 void printf(const char *fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);
 
-    while (*fmt) {
-        if (*fmt == '%') {
-            switch (*++fmt) {  // Skip '%' and read the next character
-                case '\0':     // '%' at the end of the format string
-                    putchar('%');
-                    goto end;
-                case '%':  // Print '%'
-                    putchar('%');
-                    break;
-                case 'c':
-                    char ch = va_arg(vargs, char);
-                    putchar(ch);
-                    break;
-                case 's': {  // Print a NULL-terminated string.
-                    const char *s = va_arg(vargs, const char *);
-                    while (*s) {
-                        putchar(*s);
-                        s++;
-                    }
-                    break;
-                }
-                case 'd': {  // Print an integer in decimal.
-                    int32_t value = va_arg(vargs, int32_t);
-                    uint32_t magnitude = value;
-                    if (value < 0) {
-                        putchar('-');
-                        magnitude = -magnitude;
-                    }
-
-                    uint32_t divisor = 1;
-                    while (magnitude / divisor > 9) divisor *= 10;
-
-                    while (divisor > 0) {
-                        putchar('0' + magnitude / divisor);
-                        magnitude %= divisor;
-                        divisor /= 10;
-                    }
-
-                    break;
-                }
-                case 'x': {  // Print an integer in hexadecimal.
-                    uint32_t value = va_arg(vargs, uint32_t);
-                    for (size_t i = 0; i < 2; i++) {
-                        putchar("0x"[i]);
-                    }
-
-                    for (int32_t i = 7; i >= 0; i--) {
-                        uint32_t nibble = (value >> (i * 4)) & 0xf;
-                        putchar("0123456789abcdef"[nibble]);
-                    }
-                }
-            }
-        } else {
-            putchar(*fmt);
+    for (const char *p = fmt; *p; p++) {
+        if (*p != '%') {
+            putchar(*p);
+            continue;
         }
 
-        fmt++;
+        switch (*++p) {  // Skip '%' and read the next character
+            case '%':    // Print '%'
+                putchar('%');
+                break;
+            case 'c':  // Print a single character.
+                char ch = va_arg(vargs, char);
+                putchar(ch);
+                break;
+            case 's': {  // Print a NULL-terminated string.
+                const char *s = va_arg(vargs, const char *);
+                while (*s) {
+                    putchar(*s);
+                    s++;
+                }
+                break;
+            }
+            case 'd': {  // Print an integer in decimal.
+                int32_t value = va_arg(vargs, int32_t);
+                char buf[12];  // int32_t at max has 11 characters (including '-') and 1 more character for '\0'
+                               // 2147483647 to -2147483648
+                printf("%s", itoa(value, buf, 10));
+                break;
+            }
+            case 'x': {  // Print an integer in hexadecimal.
+                int32_t value = va_arg(vargs, int32_t);
+                char buf[9];  // address has at max 8 characters and 1 more character for '\0'
+                              // 0x00000000 to 0xffffffff
+                printf("%s", itoa(value, buf, 16));
+                break;
+            }
+            case '\0':  // '%' at the end of the format string, print '%'.
+                putchar('%');
+                p--;
+                break;
+            default:  // Print '%' and the character that follows '%'.
+                putchar('%');
+                putchar(*p);
+        }
     }
 
-end:
     va_end(vargs);
 }

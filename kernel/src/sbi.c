@@ -1,5 +1,6 @@
 #include "sbi.h"
 
+#include "lib.h"
 #include "sys.h"
 #include "types.h"
 
@@ -56,4 +57,12 @@ struct sbiret sbi_call(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
 
 void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, SYS_PUTCHAR);
+}
+
+int32_t getchar(void) {
+    while (true) {
+        struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_GETCHAR);
+        if (ret.error >= 0) return ret.error;
+        // yield();
+    }
 }

@@ -1,29 +1,43 @@
 #pragma once
+#include "types.h"
 
 /**
- * @brief Structure representing the return value of an SBI (Supervisor Binary
- * Interface) call.
+ * @brief Represents the return status and value from an SBI (Supervisor Binary Interface) call.
  *
- * This structure is used to store the result of an SBI call, which consists of:
- * - `error`: A status code indicating success (0) or an error (negative value).
- * - `value`: A return value that varies depending on the SBI function invoked.
+ * The `sbiret` structure captures the outcome of an SBI call, which enables communication
+ * between the operating system and the OpenSBI firmware in RISC-V systems.
+ * It contains two fields: `error` and `value`, corresponding to registers `a0` and `a1`
+ * upon return from the SBI call.
  *
- * @note This structure follows the RISC-V SBI specification for handling
- * supervisor calls.
+ * ## `error` Field:
+ * - Typically contains the success or failure status of the SBI call.
+ * - Standard error codes include:
+ *   - `0`: Success
+ *   - `-1`: Failed
+ *   - `-2`: Not supported
+ *   - `-3`: Invalid parameter
+ *   - `-4`: Denied
+ *   - `-5`: Invalid address
+ *   - `-6`: Already available
+ * - In some SBI calls, `error` may store a returned value instead of an error code.
+ *
+ * ## `value` Field:
+ * - Typically holds additional return data when the SBI call succeeds.
+ * - In some SBI calls, this field may not be used.
  *
  * @example
  * @code
- * struct sbiret result = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_SHUTDOWN);
- * if (result.error) {
- *     printf("SBI call failed with error: %ld\n", result.error);
+ * struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_GETCHAR);
+ * if (ret.error == 0) {
+ *     printf("SBI call succeeded, returned value: %ld\n", ret.value);
  * } else {
- *     printf("SBI call succeeded, value: %ld\n", result.value);
+ *     printf("SBI call failed with error code: %ld\n", ret.error);
  * }
  * @endcode
  */
 struct sbiret {
-    long error;  ///< Error code (0 for success, negative for failure).
-    long value;  ///< Return value from the SBI call.
+    long error;  ///< Status code or returned value, depending on the SBI call.
+    long value;  ///< Additional return data (may be unused in some SBI calls).
 };
 
 /**
@@ -45,3 +59,23 @@ struct sbiret {
  * @endcode
  */
 void putchar(char ch);
+
+/**
+ * @brief Reads a single character from the input using an SBI call.
+ *
+ * This function repeatedly calls the SBI `SYS_GETCHAR` service to retrieve a character
+ * from the console input. If no character is available, it yields execution and retries.
+ *
+ * @return The character read as an `int32_t`, or a negative error code if the call fails.
+ *
+ * @example
+ * @code
+ * int32_t ch = getchar();
+ * if (ch >= 0) {
+ *     printf("Received character: %c\n", (char)ch);
+ * } else {
+ *     printf("Error reading character\n");
+ * }
+ * @endcode
+ */
+int32_t getchar(void);

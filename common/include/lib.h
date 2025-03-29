@@ -1,5 +1,4 @@
 #pragma once
-#include "colors.h"
 #include "types.h"
 
 /**
@@ -91,8 +90,8 @@
  *     double c;
  * };
  *
- * size_t offset = offsetof(struct Example, c); // Returns the byte offset of
- * 'c' within 'Example' printf("Offset of c: %zu\n", offset);
+ * size_t offset = offsetof(struct Example, c); // Returns the byte offset of 'c' within 'Example'
+ * printf("Offset of c: %x\n", offset);
  * @endcode
  */
 #define offsetof(type, member) __builtin_offsetof(type, member)
@@ -226,95 +225,20 @@
 #define va_arg __builtin_va_arg
 
 /**
- * @brief Logs a critical error message and halts execution.
- *
- * This macro prints a panic message in yellow (`[PANIC]`), including the file
- * name and line number, then enters an infinite loop to stop execution. The
- * loop uses the `wfi` (Wait For Interrupt) instruction to halt the CPU while
- * allowing external debugging or power-saving features.
- *
- * @param[in] fmt    The format string (similar to printf).
- * @param[in] ...    Additional arguments for formatting.
- *
- * @note This function does not return. It is intended for fatal errors where
- * the system must halt execution.
- *
- * @example
- * @code
- * PANIC("Kernel encountered an unrecoverable error!");
- * @endcode
- */
-#define PANIC(fmt, ...)                                                        \
-    do {                                                                       \
-        printf("[" L_YELLOW "PANIC" NONE "] " L_BLACK "%s:%d: " NONE fmt "\n", \
-               __FILE__, __LINE__, ##__VA_ARGS__);                             \
-        while (true) {                                                         \
-            __asm__ __volatile__("wfi");                                       \
-        }                                                                      \
-    } while (false)
-
-/**
- * @brief Logs a failure message.
- *
- * This macro prints a failure message in red (`[FAILED]`).
- *
- * @param[in] fmt    The format string (similar to printf).
- * @param[in] ...    Additional arguments for formatting.
- *
- * @example
- * @code
- * FAILED("Memory allocation failed!");
- * @endcode
- */
-#define FAILED(fmt, ...) \
-    printf("[" L_RED "FAILED" NONE "] " fmt "\n", ##__VA_ARGS__);
-
-/**
- * @brief Logs a success message.
- *
- * This macro prints an OK message in green (`[  OK  ]`).
- *
- * @param[in] fmt    The format string (similar to printf).
- * @param[in] ...    Additional arguments for formatting.
- *
- * @example
- * @code
- * OK("System initialized successfully!");
- * @endcode
- */
-#define OK(fmt, ...) \
-    printf("[" L_GREEN "  OK  " NONE "] " fmt "\n", ##__VA_ARGS__);
-
-/**
- * @brief Logs an informational message to the console.
- *
- * This macro prints an INFO message in blue (`[ INFO ]`).
- * It is typically used for debugging or logging non-critical system events.
- *
- * @param[in] fmt    The format string (similar to printf).
- * @param[in] ...    Additional arguments for formatting.
- *
- * @note This macro relies on `printf` for output formatting.
- *
- * @example
- * @code
- * INFO("System initialization complete.");
- * INFO("Loaded module: %s", module_name);
- * @endcode
- */
-#define INFO(fmt, ...) \
-    printf("[" L_BLUE " INFO " NONE "] " fmt "\n", ##__VA_ARGS__);
-
-/**
  * @brief Fills a block of memory with a specified byte value.
  *
+ * This function sets the first `n` bytes of the memory block pointed to by `buf`
+ * to the specified byte value `c`.
+ *
  * @param buf Pointer to the memory block to be filled.
- * @param value The byte value to set (converted to `unsigned char`).
- * @param size The number of bytes to fill.
- * @return A pointer to the memory block (`buf`).
+ * @param c Value to be set (cast to `uint8_t` to ensure proper behavior).
+ * @param n Number of bytes to set.
+ * @return void* Pointer to the memory block `buf`.
  *
  * @note This function is typically used to initialize memory to a known value.
- * @note The `value` is internally converted to an `unsigned char`, meaning
+ * @note The function does not check for buffer overflow. Ensure that `buf`
+ *       has at least `n` bytes allocated.
+ * @note The `c` is internally converted to an `uint8_t`, meaning
  * values outside the 0-255 range will be truncated.
  *
  * @example
@@ -323,18 +247,16 @@
  * memset(buffer, 0, sizeof(buffer)); // Fills the buffer with zeros
  * @endcode
  */
-void *memset(void *buf, int8_t value, size_t size);
+void *memset(void *buf, int8_t c, size_t n);
 
 /**
  * @brief Copies a block of memory from a source location to a destination.
  *
  * @param dst Pointer to the destination memory where data will be copied.
  * @param src Pointer to the source memory from which data is copied.
- * @param size The number of bytes to copy.
+ * @param n The number of bytes to copy.
  * @return A pointer to the destination memory (`dst`).
  *
- * @note The memory areas should not overlap. If overlapping is possible, use
- * `memmove` instead.
  * @note The function does not perform any boundary checking; ensure `dst` has
  * enough space.
  *
@@ -345,7 +267,7 @@ void *memset(void *buf, int8_t value, size_t size);
  * memcpy(destination, source, 6); // Copies "Hello\0" to destination
  * @endcode
  */
-void *memcpy(void *dst, const void *src, size_t size);
+void *memcpy(void *dst, const void *src, size_t n);
 
 /**
  * @brief Copies a null-terminated string from the source to the destination.
@@ -392,6 +314,98 @@ char *strcpy(char *dst, const char *src);
  * @endcode
  */
 int strcmp(const char *str1, const char *str2);
+
+/**
+ * @brief Computes the length of a null-terminated string.
+ *
+ * This function iterates through the string until it encounters
+ * the null terminator (`'\0'`), counting the number of characters.
+ *
+ * @param str Pointer to the input string.
+ * @return The number of characters in the string before the null terminator.
+ *
+ * @note The function does not include the null terminator in the count.
+ *
+ * @example
+ * @code
+ * printf("%d", strlen("hello")); // Output: 5
+ * @endcode
+ */
+size_t strlen(char *str);
+
+/**
+ * @brief Reverses a null-terminated string in place.
+ *
+ * This function swaps characters from the beginning and end of the string
+ * until it reaches the middle, effectively reversing the string.
+ *
+ * @param str Pointer to the string to be reversed.
+ * @return The same pointer to the reversed string.
+ *
+ * @note The function modifies the original string and does not allocate memory.
+ *
+ * @example
+ * @code
+ * char s[] = "hello";
+ * printf("%s", strrev(s)); // Output: "olleh"
+ * @endcode
+ */
+char *strrev(char *str);
+
+/**
+ * @brief Converts an integer to a string representation in a given base.
+ *
+ * This function converts a signed 32-bit integer to a null-terminated
+ * string in the specified base (2 to 36). The result is stored in `str`.
+ *
+ * @param num The integer to convert.
+ * @param str Pointer to the buffer where the resulting string will be stored.
+ * @param base The numeric base (2 to 36) for conversion.
+ * @return A pointer to the resulting null-terminated string.
+ *
+ * @note The buffer `str` must be large enough to hold the resulting string,
+ *       including the null terminator.
+ * @note Only base 10 supports negative numbers; for other bases,
+ *       the number is treated as unsigned.
+ *
+ * @example
+ * @code
+ * int main() {
+ *     char buffer[20];
+ *     printf("%s\n", itoa(1234, buffer, 10));  // Output: "1234"
+ *     printf("%s\n", itoa(-1234, buffer, 10)); // Output: "-1234"
+ *     printf("%s\n", itoa(255, buffer, 16));   // Output: "ff"
+ *     printf("%s\n", itoa(255, buffer, 2));    // Output: "11111111"
+ *     return 0;
+ * }
+ * @endcode
+ */
+char *itoa(int32_t num, char *str, size_t base);
+
+/**
+ * @brief Converts a string to an integer.
+ *
+ * This function converts a numeric string to a signed 32-bit integer.
+ * It ignores leading whitespace and handles optional negative signs.
+ *
+ * @param str Pointer to the null-terminated string containing the number.
+ * @return The converted integer value. If the string does not contain
+ *         a valid number, the result is undefined.
+ *
+ * @note This function does not handle integer overflow or underflow.
+ *
+ * @example
+ * @code
+ * int main() {
+ *     printf("%d\n", atoi("1234"));    // Output: 1234
+ *     printf("%d\n", atoi("-5678"));   // Output: -5678
+ *     printf("%d\n", atoi("  42"));    // Output: 42
+ *     printf("%d\n", atoi("99abc"));   // Output: 99 (stops at non-digit)
+ *     return 0;
+ * }
+ * @endcode
+ */
+int32_t atoi(const char *str);
 
 /**
  * @brief Prints formatted output to the standard output (stdout).
