@@ -66,6 +66,8 @@ void putchar(char ch);
  * This function repeatedly calls the SBI `SYS_GETCHAR` service to retrieve a character
  * from the console input. If no character is available, it yields execution and retries.
  *
+ * @note This function is implemented using the `sbi_call` function.
+ *
  * @return The character read as an `int32_t`, or a negative error code if the call fails.
  *
  * @example
