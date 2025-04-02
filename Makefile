@@ -129,6 +129,11 @@ kernel-run:
 	$(info Running elf file: "$(KERNEL_ELF_PATH)" on Qemu ...)
 	@$(QEMU) $(QEMU_FLAGS) $(KERNEL_ELF_PATH)
 
+# use case: make kernel-addr2line ADDRESS=xxxxxxxx
+kernel-addr2line:
+	$(info Mapping address to line for elf file: "$(KERNEL_ELF_PATH)" ...)
+	@$(ADDR2LINE) -e $(KERNEL_ELF_PATH) $(ADDRESS)
+
 ##############
 ## Patterns ##
 ##############
@@ -150,4 +155,4 @@ $(BUILD_DIR)/$(USER_DIR)%.o: $(USER_DIR)/$(SOURCE_DIR)/%.c
 ###########
 ## Phony ##
 ###########
-.PHONY: all create clean kernel-asm kernel-build kernel-run
+.PHONY: all create clean kernel-asm kernel-build kernel-run kernel-addr2line

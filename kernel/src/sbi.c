@@ -5,35 +5,44 @@
 #include "types.h"
 
 /**
- * @brief Performs an SBI (Supervisor Binary Interface) call.
+ * @brief Performs a Supervisor Binary Interface (SBI) call.
  *
- * This function executes an `ecall` instruction to invoke an SBI function
- * with the provided arguments and returns the result.
+ * This function executes an SBI call using the RISC-V `ecall` instruction,
+ * allowing the operating system to communicate with the OpenSBI firmware.
+ * The SBI call mechanism is used for various privileged operations,
+ * such as console input/output, time management, and inter-processor
+ * communication.
  *
- * @param[in] arg0 First argument for the SBI call (a0 register).
- * @param[in] arg1 Second argument for the SBI call (a1 register).
- * @param[in] arg2 Third argument for the SBI call (a2 register).
- * @param[in] arg3 Fourth argument for the SBI call (a3 register).
- * @param[in] arg4 Fifth argument for the SBI call (a4 register).
- * @param[in] arg5 Sixth argument for the SBI call (a5 register).
- * @param[in] fid SBI function ID (a6 register).
- * @param[in] eid SBI extension ID (a7 register).
+ * The function takes eight arguments, which are placed in the appropriate
+ * registers before executing the `ecall`. The SBI extension ID (`eid`) is
+ * passed in register `a7`, and the function ID (`fid`) is passed in `a6`.
+ * The remaining registers (`a0`-`a5`) hold additional parameters. Upon
+ * return, `a0` contains either an error code (on failure) or a successful
+ * return value, and `a1` may contain additional return data.
  *
- * @return A `struct sbiret` containing:
- *   - `error`: A status code (0 on success, negative on failure).
- *   - `value`: The return value from the SBI call.
+ * @param[in] arg0  Value to be placed in register `a0` before the `ecall`.
+ * @param[in] arg1  Value to be placed in register `a1` before the `ecall`.
+ * @param[in] arg2  Value to be placed in register `a2` before the `ecall`.
+ * @param[in] arg3  Value to be placed in register `a3` before the `ecall`.
+ * @param[in] arg4  Value to be placed in register `a4` before the `ecall`.
+ * @param[in] arg5  Value to be placed in register `a5` before the `ecall`.
+ * @param[in] fid   Function ID, placed in register `a6`.
+ * @param[in] eid   Extension ID, placed in register `a7`.
  *
- * @note This function is used in RISC-V operating systems or firmware to
- * interact with lower privilege levels (e.g., from supervisor mode to machine
- * mode).
+ * @return A `sbiret` structure containing:
+ *         - `error`: On success, it holds the returned value. On failure, it holds an error code.
+ *         - `value`: Additional return data (if applicable).
+ *
+ * @note The caller must ensure that the correct arguments are passed
+ *       according to the SBI specification for the requested function.
  *
  * @example
  * @code
- * struct sbiret result = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_SHUTDOWN);
- * if (result.error) {
- *     printf("SBI call failed with error: %ld\n", result.error);
+ * struct sbiret ret = sbi_call('A', 0, 0, 0, 0, 0, 0, SYS_PUTCHAR);
+ * if (ret.error >= 0) {
+ *     printf("Character '%c' written successfully.\n", (char)ret.error);
  * } else {
- *     printf("SBI call succeeded, value: %ld\n", result.value);
+ *     printf("SBI call failed with error code: %ld\n", ret.error);
  * }
  * @endcode
  */

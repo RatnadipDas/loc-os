@@ -172,9 +172,10 @@ void printf(const char *fmt, ...) {
         }
 
         switch (*++p) {  // Skip '%' and read the next character
-            case '%':    // Print '%'
+            case '%': {  // Print '%'
                 putchar('%');
                 break;
+            }
             case 'c': {  // Print a single character.
                 char ch = va_arg(vargs, char);
                 putchar(ch);
@@ -183,8 +184,7 @@ void printf(const char *fmt, ...) {
             case 's': {  // Print a NULL-terminated string.
                 const char *s = va_arg(vargs, const char *);
                 while (*s) {
-                    putchar(*s);
-                    s++;
+                    putchar(*s++);
                 }
                 break;
             }
@@ -218,9 +218,10 @@ void printf(const char *fmt, ...) {
                 p--;
                 break;
             }
-            default:  // Print '%' and the character that follows '%'.
+            default: {  // Print '%' and the character that follows '%'.
                 putchar('%');
                 putchar(*p);
+            }
         }
     }
 

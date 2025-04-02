@@ -1,4 +1,6 @@
 #include "lib.h"
+#include "riscv.h"
+#include "trampoline.h"
 #include "types.h"
 #include "utils.h"
 
@@ -28,16 +30,43 @@ void init_bss(void) {
     OK("Initialized .bss area.");
 }
 
+/**
+ * @brief Initializes the trap handler.
+ *
+ * This function sets up the trap handler by configuring the `stvec`
+ * register to point to the `trampoline` code, ensuring that traps
+ * are handled correctly.
+ *
+ * It logs the initialization process using `INFO` before configuring
+ * the `stvec` register and confirms completion with `OK`.
+ *
+ * @note This function should be called early in the system initialization
+ * process to ensure proper exception and interrupt handling.
+ *
+ * @example
+ * @code
+ * init_trap_handler();
+ * @endcode
+ */
+void init_trap_handler(void) {
+    INFO("Initializing trap handler...");
+    WRITE_CSR(stvec, (uint32_t)trampoline);
+    OK("Initialized trap handler.");
+}
+
+// TODO: add comment later.
 void init_boot(void) {
     INFO("Booting...");
     init_bss();
+    init_trap_handler();
     OK("Booted successfully.");
 }
 
+// TODO: add comment later.
 void kernel_main(void) {
     init_boot();
 
-    PANIC("panics here!");
+    __asm__ __volatile__("unimp");  // csrrw x0, cycle, x0; illegal instruction triggers trap handler
     FAILED("unreachable here!");
 
     for (;;) {
@@ -45,6 +74,7 @@ void kernel_main(void) {
     };  // loop infinitely
 }
 
+__attribute__((section(".text.boot"))) __attribute__((naked))
 /**
  * @brief Boot function executed at system startup.
  *
@@ -63,7 +93,8 @@ void kernel_main(void) {
  * - The `__stack_top` symbol is provided by the linker script and represents
  * the top of the stack.
  */
-__attribute__((section(".text.boot"))) __attribute__((naked)) void boot(void) {
+void
+boot(void) {
     __asm__ __volatile__(
         "mv sp, %[stack_top]\n"  // Set the stack pointer
         "j kernel_main\n"        // Jump to the kernel main function

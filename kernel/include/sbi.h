@@ -27,9 +27,9 @@
  *
  * @example
  * @code
- * struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_GETCHAR);
- * if (ret.error == 0) {
- *     printf("SBI call succeeded, returned value: %ld\n", ret.value);
+ * struct sbiret ret = sbi_call('A', 0, 0, 0, 0, 0, 0, SYS_PUTCHAR);
+ * if (ret.error >= 0) {
+ *     printf("Character '%c' written successfully.\n", (char)ret.error);
  * } else {
  *     printf("SBI call failed with error code: %ld\n", ret.error);
  * }
