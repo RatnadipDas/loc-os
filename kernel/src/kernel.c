@@ -1,3 +1,4 @@
+#include "alloc.h"
 #include "lib.h"
 #include "riscv.h"
 #include "trampoline.h"
@@ -66,8 +67,10 @@ void init_boot(void) {
 void kernel_main(void) {
     init_boot();
 
-    __asm__ __volatile__("unimp");  // csrrw x0, cycle, x0; illegal instruction triggers trap handler
-    FAILED("unreachable here!");
+    paddr_t paddr0 = alloc_pages(2);
+    paddr_t paddr1 = alloc_pages(1);
+    printf("alloc_pages test: paddr0=0x%x\n", paddr0);
+    printf("alloc_pages test: paddr1=0x%x\n", paddr1);
 
     for (;;) {
         __asm__ __volatile__("wfi");

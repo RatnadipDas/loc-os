@@ -25,6 +25,7 @@ KERNEL_LINKER_SCRIPT = $(KERNEL_DIR)/$(KERNEL).ld
 KERNEL_ELF_PATH = $(BUILD_DIR)/$(KERNEL_DIR)/$(KERNEL).elf
 KERNEL_MAP_PATH = $(BUILD_DIR)/$(KERNEL_DIR)/$(KERNEL).map
 KERNEL_ASM_PATH = $(BUILD_DIR)/$(KERNEL_DIR)/$(KERNEL).asm
+KERNEL_SYMBOLS_PATH = $(BUILD_DIR)/$(KERNEL_DIR)/$(KERNEL)_symbols.txt
 
 ##########
 ## User ##
@@ -35,6 +36,7 @@ USER_LINKER_SCRIPT = $(USER_DIR)/$(USER).ld
 USER_ELF_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).elf
 USER_MAP_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).map
 USER_ASM_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).asm
+USER_SYMBOLS_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER)_symbols.txt
 
 #############
 ## C Flags ##
@@ -51,6 +53,7 @@ QEMU = /usr/local/bin/qemu-system-riscv32
 OBJCOPY = /usr/local/opt/llvm/bin/llvm-objcopy
 OBJDUMP = /usr/local/opt/llvm/bin/llvm-objdump
 ADDR2LINE = /usr/local/opt/llvm/bin/llvm-addr2line
+NM = /usr/local/opt/llvm/bin/llvm-nm
 
 # Update C Flags
 CFLAGS += -std=$(C_STANDARD)
@@ -103,7 +106,7 @@ USER_C_COMPILER_CALL = $(C_COMPILER_CALL) $(USER_INCLUDE_DIR) $(COMMON_INCLUDE_D
 ##############
 ## Targets  ##
 ##############
-all: create kernel-build kernel-asm kernel-run
+all: create kernel-build kernel-asm kernel-dump-symbols kernel-run
 
 create:
 	$(info Creating build directory tree: "$(BUILD_DIR)" ...)
@@ -125,13 +128,17 @@ kernel-asm:
 	$(info Dumping asm file: "$(KERNEL_ASM_PATH)" from elf file: "$(KERNEL_ELF_PATH)" ...)
 	@$(OBJDUMP) -d $(KERNEL_ELF_PATH) > $(KERNEL_ASM_PATH)
 
+kernel-dump-symbols:
+	$(info Dumping symbols from elf file: "$(KERNEL_ELF_PATH)" to the text file: "$(KERNEL_SYMBOLS_PATH)"...)
+	@$(NM) $(KERNEL_ELF_PATH) > $(KERNEL_SYMBOLS_PATH)
+
 kernel-run:
 	$(info Running elf file: "$(KERNEL_ELF_PATH)" on Qemu ...)
 	@$(QEMU) $(QEMU_FLAGS) $(KERNEL_ELF_PATH)
 
 # use case: make kernel-addr2line ADDRESS=xxxxxxxx
 kernel-addr2line:
-	$(info Mapping address to line for elf file: "$(KERNEL_ELF_PATH)" ...)
+	$(info Mapping address: "0x$(ADDRESS)" to line for elf file: "$(KERNEL_ELF_PATH)" ...)
 	@$(ADDR2LINE) -e $(KERNEL_ELF_PATH) $(ADDRESS)
 
 ##############
@@ -155,4 +162,4 @@ $(BUILD_DIR)/$(USER_DIR)%.o: $(USER_DIR)/$(SOURCE_DIR)/%.c
 ###########
 ## Phony ##
 ###########
-.PHONY: all create clean kernel-asm kernel-build kernel-run kernel-addr2line
+.PHONY: all create clean kernel-asm kernel-dump-symbols kernel-build kernel-run kernel-addr2line

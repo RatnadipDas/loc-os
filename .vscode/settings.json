@@ -8,4 +8,7 @@
       "editor.semanticHighlighting.enabled": true,
       "editor.tabSize": 4
     },
+    "files.associations": {
+      "util.h": "c"
+    },
   }
