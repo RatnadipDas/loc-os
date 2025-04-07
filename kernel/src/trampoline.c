@@ -52,8 +52,8 @@ __attribute__((naked))
 __attribute__((aligned(4))) void
 trampoline(void) {
     __asm__ __volatile__(
-        // Save the current stack pointer to sscratch
-        "csrw sscratch, sp\n"
+        // Retrieve the kernel stack of the running process from sscratch.
+        "csrrw sp, sscratch, sp\n"
 
         // Allocate space on the stack for 31 registers (each 4 bytes)
         "addi sp, sp, -4 * 31\n"
@@ -90,9 +90,13 @@ trampoline(void) {
         "sw s10, 4 * 28(sp)\n"
         "sw s11, 4 * 29(sp)\n"
 
-        // Store the original stack pointer saved in sscratch
+        // Retrieve and save the sp at the time of exception.
         "csrr a0, sscratch\n"
-        "sw a0, 4 * 30(sp)\n"
+        "sw a0,  4 * 30(sp)\n"
+
+        // Reset the kernel stack.
+        "addi a0, sp, 4 * 31\n"
+        "csrw sscratch, a0\n"
 
         // Pass stack pointer as an argument to handle_trap
         "mv a0, sp\n"

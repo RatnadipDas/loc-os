@@ -65,33 +65,33 @@ struct trap_frame {
     uint32_t sp;  /**< Stack pointer */
 } __attribute__((packed));
 
-// TODO: Modify it later.
 __attribute__((naked))
 __attribute__((aligned(4)))
 /**
- * @brief Trap handling trampoline for RISC-V.
+ * @brief Trap entry point for all exceptions and interrupts.
  *
- * This function serves as the initial entry point for handling traps (exceptions and interrupts)
- * in a RISC-V system. It saves the current register state, calls `handle_trap()`, and then restores
- * the registers before returning using `sret`.
+ * This naked and 4-byte aligned function is used as the common entry point
+ * for traps in RISC-V systems, set via the `stvec` register. It handles
+ * saving all general-purpose registers onto the current kernel stack,
+ * prepares the trap frame, and passes control to `handle_trap()`. After the
+ * trap is handled, it restores the registers and returns to the interrupted
+ * context using `sret`.
  *
- * The function performs the following steps:
- * - Saves the stack pointer (`sp`) to `sscratch`.
- * - Allocates space on the stack and saves all general-purpose registers.
- * - Calls `handle_trap()` with the current stack pointer.
- * - Restores all saved registers.
- * - Returns from the trap using `sret`.
+ * @details
+ * - The function uses the `sscratch` register to retrieve and temporarily store
+ *   the current kernel stack pointer.
+ * - It saves 31 general-purpose registers (including all caller- and
+ *   callee-saved) onto the stack.
+ * - The original `sp` is saved at slot 30 in the trap frame.
+ * - The address of `trampoline` must be aligned to 4 bytes so the low 2 bits
+ *   of `stvec` can be used to select direct or vectored mode.
+ * - After trap handling, registers and `sp` are restored before returning
+ *   using `sret`, which switches back to the previous privilege mode.
  *
- * @note This function is marked as `naked` to prevent the compiler from generating prologue and epilogue code.
- * It is also aligned to 4 bytes to ensure proper instruction alignment.
- *
- * @warning This function must be executed in a supervisor or higher privilege mode
- * to correctly interact with the CSR registers.
- *
- * @example
- * The trap handler is typically set using:
+ * @note This function should be installed in the `stvec` register in direct mode:
  * @code
- * WRITE_CSR(stvec, (uint32_t)trampoline);
+ *     // Example: set stvec to trampoline
+ *     WRITE_CSR(stvec, (uint32_t)trampoline);
  * @endcode
  */
 void

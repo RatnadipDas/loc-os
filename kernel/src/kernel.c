@@ -1,11 +1,34 @@
 #include "alloc.h"
 #include "lib.h"
+#include "proc.h"
 #include "riscv.h"
+#include "sbi.h"  // TODO: Remove it
 #include "trampoline.h"
 #include "types.h"
 #include "utils.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
+
+struct process *proc_a;
+struct process *proc_b;
+
+void proc_a_entry(void) {
+    printf("starting process A\n");
+    while (1) {
+        putchar('A');
+        switch_context(&proc_a->sp, &proc_b->sp);
+        yield();
+    }
+}
+
+void proc_b_entry(void) {
+    printf("starting process B\n");
+    while (1) {
+        putchar('B');
+        switch_context(&proc_b->sp, &proc_a->sp);
+        yield();
+    }
+}
 
 /**
  * @brief Initializes the .bss section by setting it to zero.
@@ -60,6 +83,7 @@ void init_boot(void) {
     INFO("Booting...");
     init_bss();
     init_trap_handler();
+    init_idle_process();
     OK("Booted successfully.");
 }
 
@@ -67,10 +91,11 @@ void init_boot(void) {
 void kernel_main(void) {
     init_boot();
 
-    paddr_t paddr0 = alloc_pages(2);
-    paddr_t paddr1 = alloc_pages(1);
-    printf("alloc_pages test: paddr0=0x%x\n", paddr0);
-    printf("alloc_pages test: paddr1=0x%x\n", paddr1);
+    proc_a = create_process((uint32_t)proc_a_entry);
+    proc_b = create_process((uint32_t)proc_b_entry);
+
+    yield();
+    PANIC("switched to idle process");
 
     for (;;) {
         __asm__ __volatile__("wfi");
