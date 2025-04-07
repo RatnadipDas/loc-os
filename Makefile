@@ -37,6 +37,9 @@ USER_ELF_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).elf
 USER_MAP_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).map
 USER_ASM_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).asm
 USER_SYMBOLS_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER)_symbols.txt
+USER_BIN_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).bin
+USER_BIN_OBJ_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER).bin.o
+USER_BIN_OBJ_SYMBOLS_PATH = $(BUILD_DIR)/$(USER_DIR)/$(USER)_bin_obj_symbols.txt
 
 #############
 ## C Flags ##
@@ -72,7 +75,10 @@ USER_LDFLAGS += -Wl,-Map=$(USER_MAP_PATH)
 ################
 ## Qemu Flags ##
 ################
-QEMU_FLAGS = -machine virt -bios default -nographic -serial mon:stdio --no-reboot -kernel
+QEMU_LOG_FILE = $(BUILD_DIR)/qemu.log
+QEMU_FLAGS = -machine virt -bios default -nographic -serial mon:stdio --no-reboot
+QEMU_FLAGS += -d unimp,guest_errors,int,cpu_reset -D $(QEMU_LOG_FILE)
+QEMU_FLAGS += -kernel
 
 #################################
 ## C Compiler and Source Files ##
@@ -91,7 +97,7 @@ KERNEL_INCLUDE_DIR = -I $(KERNEL_DIR)/$(INCLUDE_DIR)
 
 # User C Sources
 USER_C_SOURCES = $(wildcard $(USER_DIR)/$(SOURCE_DIR)/*.c)
-USER_C_OBJECTS = $(patsubst $(USER_DIR)/$(SOURCE_DIR)/%.c, $(BUILD_DIR)/$(KERNEL_DIR)/%.o, $(USER_C_SOURCES))
+USER_C_OBJECTS = $(patsubst $(USER_DIR)/$(SOURCE_DIR)/%.c, $(BUILD_DIR)/$(USER_DIR)/%.o, $(USER_C_SOURCES))
 USER_INCLUDE_DIR = -I $(USER_DIR)/$(INCLUDE_DIR)
 
 # Common Compiler Call
@@ -106,8 +112,10 @@ USER_C_COMPILER_CALL = $(C_COMPILER_CALL) $(USER_INCLUDE_DIR) $(COMMON_INCLUDE_D
 ##############
 ## Targets  ##
 ##############
-all: create kernel-build kernel-asm kernel-dump-symbols kernel-run
+.PHONY: all
+all: create kernel-build kernel-run
 
+.PHONY: create
 create:
 	$(info Creating build directory tree: "$(BUILD_DIR)" ...)
 	@mkdir -p $(BUILD_DIR)
@@ -115,31 +123,60 @@ create:
 	@mkdir -p $(BUILD_DIR)/$(KERNEL_DIR)
 	@mkdir -p $(BUILD_DIR)/$(USER_DIR)
 
+.PHONY: clean
 clean:
 	$(info Removing build directory tree: "$(BUILD_DIR)" ...)
 	@rm -rf $(BUILD_DIR)
 
 # Kernel Targets
-kernel-build: $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS)
-	$(info Compiling elf file: "$(KERNEL_ELF_PATH)" from object files: "$(strip $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS))" ...)
-	@$(C_COMPILER_CALL) $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS) $(KERNEL_LDFLAGS) -o $(KERNEL_ELF_PATH)
+.PHONY: kernel-build
+kernel-build: $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS) $(USER_BIN_OBJ_PATH)
+	$(info Compiling elf file: "$(KERNEL_ELF_PATH)" from obj files: "$(strip $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS))" ...)
+	$(info And embedding user binary object file: "$(USER_BIN_OBJ_PATH)" into the elf file: "$(KERNEL_ELF_PATH)" ...)
+	@$(C_COMPILER_CALL) $(KERNEL_C_OBJECTS) $(COMMON_C_OBJECTS) $(KERNEL_LDFLAGS) -o $(KERNEL_ELF_PATH) $(USER_BIN_OBJ_PATH)
 
+.PHONY: kernel-asm
 kernel-asm:
 	$(info Dumping asm file: "$(KERNEL_ASM_PATH)" from elf file: "$(KERNEL_ELF_PATH)" ...)
 	@$(OBJDUMP) -d $(KERNEL_ELF_PATH) > $(KERNEL_ASM_PATH)
 
+.PHONY: kernel-dump-symbols
 kernel-dump-symbols:
-	$(info Dumping symbols from elf file: "$(KERNEL_ELF_PATH)" to the text file: "$(KERNEL_SYMBOLS_PATH)"...)
+	$(info Dumping symbols from elf file: "$(KERNEL_ELF_PATH)" to the text file: "$(KERNEL_SYMBOLS_PATH)" ...)
 	@$(NM) $(KERNEL_ELF_PATH) > $(KERNEL_SYMBOLS_PATH)
 
-kernel-run:
+.PHONY: kernel-run
+kernel-run: kernel-asm user-asm kernel-dump-symbols user-dump-symbols user-bin-obj-dump-symbols
 	$(info Running elf file: "$(KERNEL_ELF_PATH)" on Qemu ...)
 	@$(QEMU) $(QEMU_FLAGS) $(KERNEL_ELF_PATH)
 
 # use case: make kernel-addr2line ADDRESS=xxxxxxxx
+.PHONY: kernel-add2line
 kernel-addr2line:
 	$(info Mapping address: "0x$(ADDRESS)" to line for elf file: "$(KERNEL_ELF_PATH)" ...)
 	@$(ADDR2LINE) -e $(KERNEL_ELF_PATH) $(ADDRESS)
+
+# User Targets
+.PHONY: user-asm
+user-asm:
+	$(info Dumping asm file: "$(USER_ASM_PATH)" from elf file: "$(USER_ELF_PATH)" ...)
+	@$(OBJDUMP) -d $(USER_ELF_PATH) > $(USER_ASM_PATH)
+
+.PHONY: user-dump-symbols
+user-dump-symbols:
+	$(info Dumping symbols from elf file: "$(USER_ELF_PATH)" to the text file: "$(USER_SYMBOLS_PATH)" ...)
+	@$(NM) $(USER_ELF_PATH) > $(USER_SYMBOLS_PATH)
+
+.PHONY: user-bin-obj-symbols
+user-bin-obj-dump-symbols:
+	$(info Dumping symbols from bin obj file: "$(USER_BIN_OBJ_PATH)" to the text file: "$(USER_BIN_OBJ_SYMBOLS_PATH)" ...)
+	@$(NM) $(USER_BIN_OBJ_PATH) > $(USER_BIN_OBJ_SYMBOLS_PATH)
+
+# use case: make user-addr2line ADDRESS=xxxxxxxx
+.PHONY: user-addr2line
+user-addr2line:
+	$(info Mapping address: "0x$(ADDRESS)" to line for elf file: "$(USER_ELF_PATH)" ...)
+	@$(ADDR2LINE) -e $(USER_ELF_PATH) $(ADDRESS)
 
 ##############
 ## Patterns ##
@@ -159,7 +196,14 @@ $(BUILD_DIR)/$(USER_DIR)%.o: $(USER_DIR)/$(SOURCE_DIR)/%.c
 	$(info Compiling object file: "$@" from source file: "$<" ...)
 	@$(USER_C_COMPILER_CALL) -c $< -o $@
 
-###########
-## Phony ##
-###########
-.PHONY: all create clean kernel-asm kernel-dump-symbols kernel-build kernel-run kernel-addr2line
+$(USER_ELF_PATH): $(USER_C_OBJECTS) $(COMMON_C_OBJECTS)
+	$(info Compiling elf file: "$(USER_ELF_PATH)" from obj files: "$(strip $(USER_C_OBJECTS) $(COMMON_C_OBJECTS))" ...)
+	@$(C_COMPILER_CALL) $(USER_C_OBJECTS) $(COMMON_C_OBJECTS) $(USER_LDFLAGS) -o $(USER_ELF_PATH)
+
+$(USER_BIN_PATH): $(USER_ELF_PATH)
+	$(info Creating user binary file: "$@" from elf file: "$<" ...)
+	@$(OBJCOPY) --set-section-flags .bss=alloc,contents -O binary $< $@
+
+$(USER_BIN_OBJ_PATH): $(USER_BIN_PATH)
+	$(info Creating user binary object file: "$@" from binary file: "$<" ...)
+	@$(OBJCOPY) -Ibinary -Oelf32-littleriscv $< $@

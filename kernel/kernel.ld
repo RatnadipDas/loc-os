@@ -7,6 +7,9 @@ SECTIONS {
     */
     . = 0x80200000;
 
+    /* Kernel base starts from 0x80200000. */
+    __kernel_base = .;
+
     /* This section contains the code of the program. */
     .text :{
         /* The .text.boot section is always placed at the beginning. */

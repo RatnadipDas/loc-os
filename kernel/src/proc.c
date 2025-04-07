@@ -1,7 +1,11 @@
 #include "proc.h"
 
+#include "alloc.h"
 #include "lib.h"
 #include "utils.h"
+#include "vm.h"
+
+extern char __kernel_base[], __free_ram_end[];
 
 /**
  * @brief Array of all process control structures in the system.
@@ -84,7 +88,7 @@ switch_context(uint32_t *prev_sp,
         "ret\n");  // Return to the instruction after previous call (restored ra)
 }
 
-struct process *create_process(uint32_t pc) {
+struct process *create_process(const void *image, size_t image_size, const vaddr_t base_addr, const vaddr_t pc) {
     // Find an unused process control structure.
     struct process *proc = NULL;
     int i;
@@ -116,16 +120,37 @@ struct process *create_process(uint32_t pc) {
     *--sp = 0;                                                     // s0
     *--sp = (uint32_t)pc;                                          // ra
 
+    // Map kernel pages.
+    uint32_t *page_table = (uint32_t *)alloc_pages(1);
+    for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (paddr_t)__free_ram_end; paddr += PAGE_SIZE)
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+
+    // Map user pages.
+    for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
+        paddr_t page = alloc_pages(1);
+
+        // Handle the case where the data to be copied is smaller than the
+        // page size.
+        size_t remaining = image_size - off;
+        size_t copy_size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
+
+        // Fill and map the page.
+        memcpy((void *)page, image + off, copy_size);
+        map_page(page_table, base_addr + off, page,
+                 PAGE_U | PAGE_R | PAGE_W | PAGE_X);
+    }
+
     // Initialize fields.
     proc->pid = i + 1;
     proc->state = PROC_RUNNABLE;
     proc->sp = (uint32_t)sp;
+    proc->page_table = page_table;
     return proc;
 }
 
 void init_idle_process() {
     INFO("Initializing idle process...")
-    struct process *idle_proc = create_process((uint32_t)NULL);
+    struct process *idle_proc = create_process(NULL, 0, 0, (uint32_t)NULL);
     idle_proc->pid = 0;
     current_proc = idle_proc;
     OK("Initialized idle process.")
@@ -147,12 +172,30 @@ void yield(void) {
     if (next == current_proc)
         return;
 
-    // Set sscratch to point to the top of the next process's kernel stack.
-    // This will be used by the trap handler to restore the correct stack.
+    // satp layout for Sv32 mode:
+    // | 31 - Mode (01 for Sv32) | 30-22 - ASID | 21-0 - PPN (Physical Page Number) |
+    //
+    // Set up the CPU for the next process:
+    // 1. Flush the TLB to remove any stale virtual-to-physical address mappings.
+    //    This is necessary because we are about to switch to a new page table,
+    //    and the CPU might still cache old translations.
+    //
+    // 2. Write the new page table into the `satp` register. This effectively switches
+    //    the memory space to the new process by setting the base physical page number
+    //    of the root page table.
+    //
+    // 3. Flush the TLB again to ensure the new mappings are used immediately.
+    //
+    // 4. Set `sscratch` to point to the top of the new process's kernel stack.
+    //    This register will be used during a trap to restore the correct stack pointer.
     __asm__ __volatile__(
-        "csrw sscratch, %[sscratch]\n"
+        "sfence.vma\n"                  // Step 1: Invalidate old TLB entries
+        "csrw satp, %[satp]\n"          // Step 2: Switch to the new page table
+        "sfence.vma\n"                  // Step 3: Ensure changes take effect
+        "csrw sscratch, %[sscratch]\n"  // Step 4: Set up kernel stack for trap handling
         :
-        : [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
+        : [satp] "r"(SATP_SV32 | ((uint32_t)next->page_table / PAGE_SIZE)),
+          [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
 
     // Perform context switch to the selected process
     struct process *prev = current_proc;

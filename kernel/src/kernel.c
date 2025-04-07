@@ -2,31 +2,12 @@
 #include "lib.h"
 #include "proc.h"
 #include "riscv.h"
-#include "sbi.h"  // TODO: Remove it
 #include "trampoline.h"
 #include "types.h"
+#include "user.h"
 #include "utils.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
-
-struct process *proc_a;
-struct process *proc_b;
-
-void proc_a_entry(void) {
-    printf("starting process A\n");
-    while (1) {
-        putchar('A');
-        yield();
-    }
-}
-
-void proc_b_entry(void) {
-    printf("starting process B\n");
-    while (1) {
-        putchar('B');
-        yield();
-    }
-}
 
 /**
  * @brief Initializes the .bss section by setting it to zero.
@@ -82,6 +63,7 @@ void init_boot(void) {
     init_bss();
     init_trap_handler();
     init_idle_process();
+    init_user();
     OK("Booted successfully.");
 }
 
@@ -89,9 +71,7 @@ void init_boot(void) {
 void kernel_main(void) {
     init_boot();
 
-    proc_a = create_process((uint32_t)proc_a_entry);
-    proc_b = create_process((uint32_t)proc_b_entry);
-
+    INFO("Switching to user shell...");
     yield();
     PANIC("switched to idle process");
 

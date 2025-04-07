@@ -21,17 +21,19 @@
 
 /**
  * @struct process
- * @brief Represents a simple process control structure.
+ * @brief Represents a process control block (PCB) in the operating system.
  *
- * This structure holds essential information about a process in the system,
- * such as its ID, execution state, and stack information. It is used by the
- * kernel to manage context switching and scheduling.
+ * This structure defines the minimal state required to manage a process.
+ * It includes identifiers, execution state, memory mappings, and kernel stack.
+ * The kernel uses this structure for process scheduling, context switching, and
+ * memory management. Each process is represented by one instance of this struct.
  */
 struct process {
-    int pid;              ///< Process ID, a unique identifier for the process.
-    int state;            ///< Current state of the process (e.g., PROC_UNUSED or PROC_RUNNABLE).
-    vaddr_t sp;           ///< Stack pointer (virtual address) used for context switching.
-    uint8_t stack[8192];  ///< Kernel stack space allocated for the process (8 KB).
+    int pid;               ///< Unique process identifier assigned by the kernel.
+    int state;             ///< Process state (e.g., PROC_UNUSED, PROC_RUNNABLE, etc.).
+    vaddr_t sp;            ///< Saved stack pointer (virtual address) for context switching.
+    uint32_t *page_table;  ///< Pointer to the root page table of the process (Sv32).
+    uint8_t stack[8192];   ///< Kernel stack used during system calls and interrupts (8 KB).
 };
 
 __attribute__((naked))
@@ -78,6 +80,7 @@ void
 switch_context(uint32_t *prev_sp,
                uint32_t *next_sp);
 
+// TODO: Update the comment
 /**
  * @brief Creates a new process and initializes its stack.
  *
@@ -99,7 +102,7 @@ switch_context(uint32_t *prev_sp,
  * struct process *p = create_process((uint32_t)&some_function);
  * @endcode
  */
-struct process *create_process(uint32_t pc);
+struct process *create_process(const void *image, size_t image_size, const vaddr_t base_addr, const vaddr_t pc);
 
 /**
  * @brief Initializes the idle process.
@@ -118,23 +121,30 @@ struct process *create_process(uint32_t pc);
 void init_idle_process(void);
 
 /**
- * @brief Yields the CPU to another runnable process.
+ * @brief Voluntarily yield the CPU to allow scheduling of another process.
  *
- * Implements cooperative multitasking by selecting a new runnable process (if any),
- * and performing a context switch to it. If no other runnable process exists, the
- * idle process is selected instead.
+ * This function implements cooperative multitasking by selecting the next runnable process
+ * and switching context to it. If no other process is runnable, the idle process is chosen.
  *
- * This version also sets the `sscratch` CSR to point to the top of the next process's
- * kernel stack. This is useful for trap handling that relies on `sscratch` to find
- * the process stack quickly.
+ * The function performs the following steps:
+ * - Finds the next process in a round-robin fashion.
+ * - Skips the current process unless no other option is available.
+ * - Updates the `satp` CSR to switch to the new process's page table.
+ * - Sets the `sscratch` CSR to point to the top of the new process's kernel stack.
+ * - Performs a context switch using `switch_context`.
  *
- * @note Should be called by processes wishing to voluntarily yield the CPU.
+ * Flushing the TLB before and after modifying `satp` ensures memory consistency and avoids
+ * stale virtual-to-physical address translations.
+ *
+ * @note This should be called by a process that wants to voluntarily give up the CPU.
+ *       It is essential in a cooperative multitasking environment where the kernel relies
+ *       on processes to yield explicitly.
  *
  * @code
- * // Example: called inside a running process
+ * // Example usage within a cooperative multitasking loop:
  * while (1) {
- *     do_work();
- *     yield();  // Give other processes a chance to run
+ *     perform_computation();
+ *     yield();  // Allow other processes to run
  * }
  * @endcode
  */
