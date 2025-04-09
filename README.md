@@ -7,7 +7,7 @@ https://operating-system-in-1000-lines.vercel.app/en/
 
 ---
 
-This project uses GNU Make to build and run a RISC-V kernel LoC OS with user-mode programs and simulate it using QEMU.
+This project uses GNU Make to build and run a RISC-V kernel, LoC OS with user-mode programs and simulate it using QEMU.
 
 # 🛠️ Below are the key Makefile commands:
 
