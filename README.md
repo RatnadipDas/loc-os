@@ -1,4 +1,4 @@
-# 🐚 LoC OS: RISC-V Kernel Project loc-os
+# 🐚 LoC OS: RISC-V Kernel Project
 This project is an attempt to build an OS kernel in C, based on the tutorial available at:
 
 ---
