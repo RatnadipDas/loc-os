@@ -2,7 +2,9 @@
 
 #include "alloc.h"
 #include "lib.h"
+#include "types.h"
 #include "utils.h"
+#include "virtio_disk.h"
 #include "vm.h"
 
 extern char __kernel_base[], __free_ram_end[];
@@ -89,7 +91,7 @@ switch_context(uint32_t *prev_sp,
 }
 
 struct process *create_process(const void *image, size_t image_size, const vaddr_t base_addr, const vaddr_t pc) {
-    // Find an unused process control structure.
+    // Step 1: Find an unused process slot
     struct process *proc = NULL;
     int i;
     for (i = 0; i < PROCS_MAX; i++) {
@@ -102,6 +104,7 @@ struct process *create_process(const void *image, size_t image_size, const vaddr
     if (!proc)
         PANIC("no free process slots");
 
+    // Step 2: Initialize the kernel stack for first-time context switching
     // Stack callee-saved registers. These register values will be restored in
     // only the first context switch in switch_context.
     uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)];  // This kernel 'sp' wil only be used for the first time context switching.
@@ -120,13 +123,13 @@ struct process *create_process(const void *image, size_t image_size, const vaddr
     *--sp = 0;                                                     // s0
     *--sp = (uint32_t)pc;                                          // ra
 
-    // Map kernel pages.
+    // Step 3: Create a new page table and map kernel memory (shared with all processes)
     uint32_t *page_table = (uint32_t *)alloc_pages(1);
     for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (paddr_t)__free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
 
-    // Map user pages.
-    for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
+    // Step 4: Allocate and map memory for the user image
+    for (size_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
 
         // Handle the case where the data to be copied is smaller than the
@@ -140,10 +143,14 @@ struct process *create_process(const void *image, size_t image_size, const vaddr
                  PAGE_U | PAGE_R | PAGE_W | PAGE_X);
     }
 
-    // Initialize fields.
-    proc->pid = i + 1;
-    proc->state = PROC_RUNNABLE;
-    proc->sp = (uint32_t)sp;
+    // Step 5: Map hardware (virtio block device) into the process’s address space
+    // This allows the process to interact with disk I/O through memory-mapped registers.
+    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
+
+    // Step 6: Finalize the process struct
+    proc->pid = i + 1;            // Assign a unique process ID (1-based)
+    proc->state = PROC_RUNNABLE;  // Mark as ready to be scheduled
+    proc->sp = (uint32_t)sp;      // Set initial kernel stack pointer
     proc->page_table = page_table;
     return proc;
 }
@@ -159,7 +166,7 @@ void init_idle_process() {
 void yield(void) {
     // Search for a runnable process
     struct process *next = idle_proc;  // Default to idle process
-    for (int i = 0; i < PROCS_MAX; i++) {
+    for (size_t i = 0; i < PROCS_MAX; i++) {
         // Round-robin selection, skipping current_proc if needed
         struct process *proc = &procs[(current_proc->pid + i) % PROCS_MAX];
         if (proc->state == PROC_RUNNABLE && proc->pid > 0) {
@@ -201,4 +208,8 @@ void yield(void) {
     struct process *prev = current_proc;
     current_proc = next;
     switch_context(&prev->sp, &next->sp);
+}
+
+struct process *get_current_process(void) {
+    return current_proc;
 }

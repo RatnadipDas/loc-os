@@ -1,8 +1,9 @@
 #include "sbi.h"
 
-#include "lib.h"
+#include "proc.h"
 #include "sys.h"
 #include "types.h"
+#include "utils.h"
 
 /**
  * @brief Performs a Supervisor Binary Interface (SBI) call.
@@ -72,6 +73,10 @@ int32_t getchar(void) {
     while (true) {
         struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_GETCHAR);
         if (ret.error >= 0) return ret.error;
-        // yield();
+        yield();
     }
+}
+
+void shutdown(void) {
+    sbi_call(0, 0, 0, 0, 0, 0, 0, SYS_SHUTDOWN);
 }

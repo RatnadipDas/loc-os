@@ -19,6 +19,8 @@
  */
 #define PROC_RUNNABLE 1  // Runnable process
 
+#define PROC_EXITED 2  // Exited process
+
 /**
  * @struct process
  * @brief Represents a process control block (PCB) in the operating system.
@@ -80,27 +82,27 @@ void
 switch_context(uint32_t *prev_sp,
                uint32_t *next_sp);
 
-// TODO: Update the comment
 /**
- * @brief Creates a new process and initializes its stack.
+ * @brief Create and initialize a new process.
  *
- * This function searches for an unused process control structure from the global
- * `procs` array. If a free slot is found, it initializes the process stack with
- * default values for callee-saved registers and sets the return address to the
- * provided program counter (PC). The process is marked as runnable and a unique
- * PID is assigned.
+ * This function sets up a new user process from a raw binary image by:
+ * - Locating an unused slot in the process table.
+ * - Setting up an initial kernel stack frame for context switching.
+ * - Allocating and initializing a new page table.
+ * - Mapping both kernel memory and user memory.
+ * - Mapping virtio block device memory for I/O.
+ * - Copying the user program image into memory.
+ * - Returning a pointer to the newly created process.
  *
- * @param pc The program counter (entry point) where the process will start execution.
- *           If NULL, the process behaves like an idle process.
+ * @param image       Pointer to the binary image of the program.
+ * @param image_size  Size of the binary image in bytes.
+ * @param base_addr   Virtual base address where the image should be loaded.
+ * @param pc          Initial program counter (entry point) for the process.
  *
- * @return Pointer to the newly created process.
+ * @return Pointer to the initialized `struct process`.
  *
- * @note If no free slot is available, the system will panic with an error message.
- *
- * @code
- * // Example usage:
- * struct process *p = create_process((uint32_t)&some_function);
- * @endcode
+ * @note The created process is set to `PROC_RUNNABLE` and is ready to be scheduled.
+ *       It can access the virtio block device via memory-mapped I/O.
  */
 struct process *create_process(const void *image, size_t image_size, const vaddr_t base_addr, const vaddr_t pc);
 
@@ -149,3 +151,16 @@ void init_idle_process(void);
  * @endcode
  */
 void yield(void);
+
+/**
+ * @brief Returns the currently running process.
+ *
+ * Provides access to the process control block (PCB) of the process
+ * that is currently executing on the CPU.
+ *
+ * @return Pointer to the current `struct process`.
+ *
+ * @note This function is typically used by kernel subsystems that need
+ *       to inspect or modify the state of the active process.
+ */
+struct process *get_current_process(void);

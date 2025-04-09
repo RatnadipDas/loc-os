@@ -1,4 +1,5 @@
 #include "alloc.h"
+#include "fs.h"
 #include "lib.h"
 #include "proc.h"
 #include "riscv.h"
@@ -6,7 +7,18 @@
 #include "types.h"
 #include "user.h"
 #include "utils.h"
+#include "virtio_disk.h"
 
+/**
+ * @brief Linker-defined symbols for memory section boundaries.
+ *
+ * These symbols are defined in the linker script and mark important memory
+ * regions used during system startup and runtime:
+ *
+ * - `__bss`: Start address of the BSS segment (uninitialized global/static variables).
+ * - `__bss_end`: End address of the BSS segment.
+ * - `__stack_top`: Top of the stack (initial stack pointer value at boot).
+ */
 extern char __bss[], __bss_end[], __stack_top[];
 
 /**
@@ -57,17 +69,49 @@ void init_trap_handler(void) {
     OK("Initialized trap handler.");
 }
 
-// TODO: add comment later.
+/**
+ * @brief Initializes the system during boot.
+ *
+ * This function performs early system initialization required to bring up
+ * the kernel and prepare for user-space execution. The following steps
+ * are executed in order:
+ *
+ * - Logs the boot message.
+ * - Clears the BSS segment via `init_bss()`.
+ * - Sets up the trap/interrupt handler with `init_trap_handler()`.
+ * - Initializes the VirtIO block device using `init_virtio_blk()`.
+ * - Creates the idle process with `init_idle_process()`.
+ * - Creates the initial user process via `init_user()`.
+ * - Initializes the filesystem with `init_fs()`.
+ *
+ * Finally, it logs a success message indicating that the system has booted.
+ */
 void init_boot(void) {
     INFO("Booting...");
     init_bss();
     init_trap_handler();
+    init_virtio_blk();
     init_idle_process();
     init_user();
+    init_fs();
     OK("Booted successfully.");
 }
 
-// TODO: add comment later.
+/**
+ * @brief Entry point of the kernel after early boot.
+ *
+ * This function is called after the system has been bootstrapped. It performs
+ * the final transition from kernel initialization to user-space execution.
+ *
+ * Steps performed:
+ * - Calls `init_boot()` to initialize all subsystems.
+ * - Logs a message indicating transition to the user shell.
+ * - Calls `yield()` to switch context to the first user or idle process.
+ * - Triggers a panic if control returns unexpectedly after yielding.
+ * - Enters an infinite low-power wait loop (`wfi`) as a fallback.
+ *
+ * @note This function should never return under normal operation.
+ */
 void kernel_main(void) {
     init_boot();
 

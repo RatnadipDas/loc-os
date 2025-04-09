@@ -4,6 +4,15 @@
 #include "types.h"
 #include "utils.h"
 
+/**
+ * @brief Symbols marking the boundaries of free RAM.
+ *
+ * These symbols are defined in the linker script and represent the start and end
+ * of the free RAM region available for dynamic memory allocation (e.g., heap).
+ *
+ * - `__free_ram`: Start address of the free RAM.
+ * - `__free_ram_end`: End address of the free RAM.
+ */
 extern char __free_ram[], __free_ram_end[];
 
 paddr_t alloc_pages(uint32_t n) {

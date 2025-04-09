@@ -81,3 +81,22 @@ void putchar(char ch);
  * @endcode
  */
 int32_t getchar(void);
+
+/**
+ * @brief Shuts down the system using an SBI call.
+ *
+ * This function issues an SBI call with the `SYS_SHUTDOWN` service ID to request
+ * a system shutdown. It is typically used to terminate the operating system gracefully.
+ *
+ * After the call, the system is expected to power off or halt depending on the
+ * platform's SBI implementation. This function does not return.
+ *
+ * @note Internally uses the `sbi_call` function to communicate with the supervisor.
+ *
+ * @example
+ * @code
+ * // Gracefully shut down the system
+ * shutdown();
+ * @endcode
+ */
+void shutdown(void);

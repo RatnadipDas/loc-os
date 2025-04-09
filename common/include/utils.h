@@ -65,19 +65,19 @@
 /**
  * @brief Logs an informational message to the console.
  *
- * This macro prints an INFO message in blue (`[ INFO ]`).
- * It is typically used for debugging or logging non-critical system events.
+ * This macro prints a message with an light black (`[ INFO ]`) prefix in black text,
+ * intended for general-purpose debugging or status updates during execution.
+ * It helps track non-critical events in the system flow.
  *
- * @param[in] fmt    The format string (similar to printf).
- * @param[in] ...    Additional arguments for formatting.
+ * @param[in] fmt   Format string (like `printf`), followed by optional arguments.
  *
- * @note This macro relies on `printf` for output formatting.
+ * @note This macro uses ANSI color codes for styling and `printf` for output.
  *
  * @example
  * @code
- * INFO("System initialization complete.");
- * INFO("Loaded module: %s", module_name);
+ * INFO("System boot complete.");
+ * INFO("Driver loaded: %s", driver_name);
  * @endcode
  */
 #define INFO(fmt, ...) \
-    printf("[" L_BLUE " INFO " NONE "] " fmt "\n", ##__VA_ARGS__);
+    printf("[" L_BLACK " INFO " NONE "] " BLACK fmt "\n" NONE, ##__VA_ARGS__);

@@ -1,33 +1,139 @@
 #include "trampoline.h"
 
+#include "fs.h"
+#include "proc.h"
 #include "riscv.h"
+#include "sbi.h"
+#include "sys.h"
 #include "types.h"
 #include "utils.h"
 
-// TODO: Modify it later.
 /**
- * @brief Handles unexpected traps (exceptions or interrupts).
+ * @brief Handles system calls made by user processes.
  *
- * This function is called when a trap (exception or interrupt) occurs.
- * It retrieves relevant trap information from the `scause`, `stval`,
- * and `sepc` control and status registers (CSRs) and logs a fatal error message.
+ * This function dispatches system calls based on the value in register `a3` of the provided
+ * trap frame. The following system calls are supported:
  *
- * @param f Pointer to the trap frame containing saved register states
- * before the trap occurred.
+ * - `SYS_PUTCHAR`: Writes a character (from `a0`) to the console.
+ * - `SYS_GETCHAR`: Reads a character from the console into `a0`.
+ * - `SYS_EXIT`: Marks the current process as exited and yields the CPU.
+ * - `SYS_READFILE`: Reads data from a file specified by `a0` into a buffer at `a1`.
+ * - `SYS_WRITEFILE`: Writes data from a buffer at `a1` to a file specified by `a0`.
+ * - `SYS_SHUTDOWN`: Initiates system shutdown.
  *
- * @note This function currently does not handle traps gracefully.
- * It simply logs the trap details and halts execution using `PANIC`.
+ * For `SYS_READFILE` and `SYS_WRITEFILE`:
+ * - `a0`: const char* (filename)
+ * - `a1`: char* (buffer)
+ * - `a2`: int32_t (length to read/write)
  *
- * @warning This function is not designed for normal trap handling and
- * should be modified if proper trap recovery is needed.
+ * @param f Pointer to the trap frame containing syscall arguments and return values.
  *
- * @example
- * @code
- * void trap_handler() {
- *     struct trap_frame f;
- *     handle_trap(&f);
- * }
- * @endcode
+ * @note The function will panic if an unrecognized syscall number is encountered.
+ */
+void handle_syscall(struct trap_frame *f) {
+    switch (f->a3) {
+        case SYS_PUTCHAR:
+            putchar(f->a0);
+            break;
+        case SYS_GETCHAR:
+            f->a0 = getchar();
+            break;
+        case SYS_EXIT:
+            struct process *current_process = get_current_process();
+            INFO("process %d exited", current_process->pid);
+            current_process->state = PROC_EXITED;
+            yield();
+            PANIC("unreachable");
+            break;
+        case SYS_READFILE:
+        case SYS_WRITEFILE:
+            const char *filename = (const char *)f->a0;
+            char *buf = (char *)f->a1;
+            int32_t len = f->a2;
+            struct file *file = fs_lookup(filename);
+            if (!file) {
+                FAILED("file not found: %s\n", filename);
+                f->a0 = -1;
+                break;
+            }
+
+            if (len > (int32_t)sizeof(file->data)) {
+                if (f->a3 == SYS_WRITEFILE)
+                    len = (int32_t)sizeof(file->data);
+                else
+                    len = file->size;
+            }
+
+            if (f->a3 == SYS_WRITEFILE) {
+                memcpy(file->data, buf, len);
+                file->size = len;
+                flush_fs();
+            } else {
+                memcpy(buf, file->data, len);
+            }
+
+            f->a0 = len;
+            break;
+        case SYS_SHUTDOWN:
+            INFO("Shuting down...");
+            shutdown();
+            break;
+        default:
+            PANIC("unexpected syscall a3=0x%x\n", f->a3);
+    }
+}
+
+/**
+ * @brief Trap handler for both exceptions and interrupts.
+ *
+ * This function is invoked whenever a trap occurs in the system. A trap can be either
+ * an **interrupt** (asynchronous event) or an **exception** (synchronous event).
+ * The cause of the trap is identified using the `scause` CSR, while `stval` and `sepc`
+ * provide additional context like the faulting address or instruction and program counter
+ * at the time of trap respectively.
+ *
+ * If the trap is an environment call (`ECALL`), it is handled via `handle_syscall()`.
+ * All other traps cause a system panic with diagnostic information.
+ *
+ * ---
+ *
+ * ### scause format
+ * - Bit 31: Indicates the type of trap.
+ *   - `0`: Exception
+ *   - `1`: Interrupt
+ * - Bits 30:0: Trap cause code
+ *
+ * ---
+ *
+ * ### Trap Cause Reference
+ *
+ * #### 1. Interrupts (`scause[31] = 1`)
+ * | Code | Interrupt Type                        |
+ * |:----:|:--------------------------------------|
+ * |  1   | Supervisor software interrupt (SSIP)  |
+ * |  5   | Supervisor timer interrupt (STIP)     |
+ * |  9   | Supervisor external interrupt (SEIP)  |
+ *
+ * #### 2. Exceptions (`scause[31] = 0`)
+ * | Code | Exception Type                                            |
+ * |:----:|:----------------------------------------------------------|
+ * |  0   | Instruction address misaligned                            |
+ * |  1   | Instruction access fault                                  |
+ * |  2   | Illegal instruction                                       |
+ * |  3   | Breakpoint (`ebreak` instruction)                         |
+ * |  4   | Load address misaligned                                   |
+ * |  5   | Load access fault                                         |
+ * |  6   | Store/AMO address misaligned                              |
+ * |  7   | Store/AMO access fault                                    |
+ * |  8   | Environment call from user mode (`ECALL` in U-mode)       |
+ * |  9   | Environment call from supervisor mode (`ECALL` in S-mode) |
+ * | 12   | Instruction page fault                                    |
+ * | 13   | Load page fault                                           |
+ * | 14   | Store/AMO page fault                                      |
+ *
+ * ---
+ *
+ * @param f Pointer to the current trap frame (register snapshot).
  */
 void handle_trap(struct trap_frame *f) {
     uint32_t scause = READ_CSR(scause);  // Stores the reason for the trap (interrupt or exception).
@@ -40,7 +146,16 @@ void handle_trap(struct trap_frame *f) {
     uint32_t user_pc = READ_CSR(sepc);  // Stores the address of the instruction that caused the trap.
                                         // This is useful for resuming execution after handling an exception.
 
-    PANIC("unexpected trap scause=0x%x, stval=0x%x, sepc=0x%x\n", scause, stval, user_pc);
+    if (scause == SCAUSE_ECALL) {
+        handle_syscall(f);
+        user_pc += 4;  // moves the program counter forward to skip the ecall instruction.
+                       //  Else trap will be executed endlessly
+                       //  In RV32I, RV64I, and RV128I, all instructions are 32-bit (4 bytes).
+    } else {
+        PANIC("unexpected trap scause=0x%x, stval=0x%x, sepc=0x%x\n", scause, stval, user_pc);
+    }
+
+    WRITE_CSR(sepc, user_pc);  // Resume execution from updated PC
 }
 
 __attribute__((naked))

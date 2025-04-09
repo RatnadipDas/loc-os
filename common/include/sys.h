@@ -1,6 +1,20 @@
 #pragma once
 
 /**
+ * @brief Exception code and system call identifiers for the OS.
+ *
+ * This section defines constants for exception handling and system calls.
+ *
+ * - `SCAUSE_ECALL` is the exception code used by the RISC-V architecture to indicate
+ *   that a system call (`ecall` instruction) was invoked from user mode.
+ *
+ * - The `SYS_*` macros define unique identifiers for different system calls
+ *   supported by the operating system. These identifiers are used by user programs
+ *   to request services from the kernel.
+ */
+#define SCAUSE_ECALL 8
+
+/**
  * @brief System call numbers for an operating system.
  *
  * These macros define system call numbers used to interact with the kernel.
