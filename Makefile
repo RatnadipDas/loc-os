@@ -256,10 +256,41 @@ $(USER_ELF_PATH): $(USER_C_OBJECTS) $(COMMON_C_OBJECTS)
 	$(info Compiling elf file: "$(USER_ELF_PATH)" from obj files: "$(strip $(USER_C_OBJECTS) $(COMMON_C_OBJECTS))" ...)
 	@$(C_COMPILER_CALL) $(USER_C_OBJECTS) $(COMMON_C_OBJECTS) $(USER_LDFLAGS) -o $(USER_ELF_PATH)
 
+# user.elf contains: .text, .data, .bss and ELF headers, symbol tables, section headers — all that linker/debugger stuff
+# The kernel doesn’t know or care about ELF. Copy the user program's code/data into memory and jump to it.
+# Strips everything except the raw loadable section contents.
+# Leaves just a clean flat binary -> user.bin
+#
+# --set-section-flags: Tells objcopy to modify section attributes
+# .bss: The section that holds uninitialized data (usually zeroed globals)
+# alloc: The section should be allocated in memory during program execution
+# contents: The section has contents and should be included in the output (binary)
+# -O: Specifies the output format
+# binary: Output will be raw binary data (no headers, metadata, or symbol info)
 $(USER_BIN_PATH): $(USER_ELF_PATH)
 	$(info Creating user binary file: "$@" from elf file: "$<" ...)
-	@$(OBJCOPY) --set-section-flags .bss=alloc,contents -O binary $< $@
+	@$(OBJCOPY) --set-section-flags .bss=alloc -O binary $< $@
 
+# Now we want to embed user.bin inside the kernel ELF.
+# But ld (the linker) can’t link in a raw binary file.
+# So we use objcopy to wrap the raw binary inside an ELF object file with a .data section.
+# user.bin.o = "An ELF object file with one section (.data) that contains the entire user binary."
+#
+# -I binary: Input format is raw binary (no headers, no metadata)
+# -O elf32-littleriscv: Output format is 32-bit little-endian RISC-V ELF
 $(USER_BIN_OBJ_PATH): $(USER_BIN_PATH)
 	$(info Creating user binary object file: "$@" from binary file: "$<" ...)
 	@$(OBJCOPY) -Ibinary -Oelf32-littleriscv $< $@
+
+#  Why Not Just Embed user.elf?
+# Technically we could embed the ELF directly. But we’d have to:
+# 	- Parse ELF headers in your kernel
+# 	- Find .text, .data, .bss, etc.
+# 	- Handle relocations (maybe)
+# 	- Manage segment loading yourself
+# This adds lots of complexity to the kernel.
+#
+# Instead, user.bin is a flat binary:
+# 	- You just copy it into RAM
+# 	- Set the PC to the start
+# 	- Done
