@@ -269,7 +269,7 @@ $(USER_ELF_PATH): $(USER_C_OBJECTS) $(COMMON_C_OBJECTS)
 # binary: Output will be raw binary data (no headers, metadata, or symbol info)
 $(USER_BIN_PATH): $(USER_ELF_PATH)
 	$(info Creating user binary file: "$@" from elf file: "$<" ...)
-	@$(OBJCOPY) --set-section-flags .bss=alloc -O binary $< $@
+	@$(OBJCOPY) --set-section-flags .bss=alloc,contents -O binary $< $@
 
 # Now we want to embed user.bin inside the kernel ELF.
 # But ld (the linker) can’t link in a raw binary file.
