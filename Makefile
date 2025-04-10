@@ -294,3 +294,32 @@ $(USER_BIN_OBJ_PATH): $(USER_BIN_PATH)
 # 	- You just copy it into RAM
 # 	- Set the PC to the start
 # 	- Done
+
+
+# NOTE: Specifying 'contents' without 'alloc' typically has no practical effect.
+#
+# When we do:
+# $ --set-section-flags .bss=contents
+#
+# "This section has content and should be written out."
+# But without alloc, the linker or runtime loader doesn't treat it as a section that needs memory reserved in the final image — so it might:
+# 	- Get discarded.
+# 	- Not be mapped into memory.
+# 	- Not be respected by certain tools.
+
+# Analogy:
+#
+# Imagine packing a suitcase:
+# 	- contents means “put stuff in the suitcase.”
+# 	- alloc means “actually bring the suitcase.”
+# 	- If we pack (contents) but don't bring it (alloc), it's useless.
+# So yes — contents without alloc is almost always meaningless in practice.
+
+# Summary:
+#
+# Flags Used			.bss in Output?			Memory Reserved?					Notes
+# --------------		----------------		----------------		------------------------------------
+# none						N							Y				default: .bss not dumped
+# alloc						N							Y				mapped in memory, no content emitted
+# contents					N							N				ignored without alloc
+# alloc,contents	 	Y (zero bytes)			 		Y				proper zeroed .bss in binary
