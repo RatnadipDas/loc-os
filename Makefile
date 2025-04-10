@@ -326,5 +326,7 @@ $(USER_BIN_OBJ_PATH): $(USER_BIN_PATH)
 #
 # In our case, the .bss section has no separate metadata in the final binary.
 # As a result, when the kernel loads the user program, it cannot manually zero-initialize reserved memory for .bss.
+# Also, even though memory is reserved by default but, it is absent in the binary (so also absent in .bin.o file),
+# so while virtual memory mapping whole .bss section doesn't appears.
 # To fix this, we explicitly mark the .bss section as memory-allocated (alloc) and include its zero-filled content (contents)
 # in the binary before embedding it into the kernel's .data section after converting into .bin.o (elf) format.
