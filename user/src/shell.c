@@ -7,7 +7,7 @@
 #include "utils.h"
 
 void main(void) {
-    while (1) {
+    while (true) {
     prompt:
         printf("> ");
         char cmdline[128];
