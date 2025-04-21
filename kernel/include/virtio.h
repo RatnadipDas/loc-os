@@ -175,7 +175,9 @@ struct virtio_virtq {
     struct virtq_avail avail;                                   /**< Available ring: driver informs device of ready descriptors. */
     struct virtq_used used __attribute__((aligned(PAGE_SIZE))); /**< Used ring: device informs driver of completed descriptors. */
 
-    int queue_index;               /**< Index of the virtqueue. Used to identify the queue in device registers. */
+    int queue_index;               /**< Index of the virtqueue. Used to identify the queue in device registers.
+                                    * For virtio_blk we have only one virtqueue at index 0.
+                                    */
     volatile uint16_t *used_index; /**< Tracks the current position in the used ring. Points to used.index, updated by Device. */
     uint16_t last_seen_used_index; /**< Tracks the last seen used.index should be. */
 } __attribute__((packed));
