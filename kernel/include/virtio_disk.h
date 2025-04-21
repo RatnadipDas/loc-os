@@ -2,13 +2,21 @@
 #include "types.h"
 
 /**
- * @brief Definitions for VirtIO block device interaction.
+ * @brief Definitions and structures for VirtIO block device communication.
  */
 
-#define VIRTIO_BLK_PADDR 0x10001000 /**< Physical address of the VirtIO block device. */
-#define SECTOR_SIZE 512             /**< Size of a single disk sector in bytes. */
-#define VIRTIO_BLK_T_IN 0           /**< Operation code for reading from the block device (guest reads). */
-#define VIRTIO_BLK_T_OUT 1          /**< Operation code for writing to the block device (guest writes). */
+/** Physical memory-mapped address for the VirtIO block device registers */
+#define VIRTIO_BLK_PADDR 0x10001000
+
+/** Block device sector size in bytes */
+#define SECTOR_SIZE 512
+
+/** VirtIO block request types */
+#define VIRTIO_BLK_T_IN 0            /**< Read a sector from the device. */
+#define VIRTIO_BLK_T_OUT 1           /**< Write a sector to the device. */
+#define VIRTIO_BLK_T_FLUSH 4         /**< Flush device write cache. */
+#define VIRTIO_BLK_T_DISCARD 11      /**< Discard (trim) sectors. */
+#define VIRTIO_BLK_T_WRITE_ZEROES 13 /**< Write zeroes to sectors. */
 
 /**
  * @brief Represents a request to the VirtIO block device.
@@ -18,16 +26,13 @@
  * which is set by the device after the request is completed.
  */
 struct virtio_blk_req {
-    uint32_t type; /**< Request type:
-                    *   - VIRTIO_BLK_T_IN (0):  Read sector
-                    *   - VIRTIO_BLK_T_OUT (1): Write sector
-                    */
+    uint32_t type; /**< Operation code (see VIRTIO_BLK_T_* defines). */
 
     uint32_t reserved; /**< Reserved for future use. Must be set to 0. */
 
     uint64_t sector; /**< Sector number to read/write.
                       *   Each sector is 512 bytes.
-                      *   Sector n → byte range: [n * 512, (n + 1) * 512 - 1]
+                      *   Sector n -> byte range: [n * 512, (n + 1) * 512 - 1]
                       */
 
     uint8_t data[512]; /**< Data buffer for reading from or writing to the sector. */
